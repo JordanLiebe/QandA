@@ -30,7 +30,9 @@
 *.exe
 *.out
 *.app
+
 /backend/QandA/bin/Debug/netcoreapp3.1
 /backend/QandA/obj
-/frontend/node_modules/.
 frontend/node_modules/.
+
+*node_modules/*
