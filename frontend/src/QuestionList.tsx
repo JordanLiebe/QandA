@@ -1,10 +1,9 @@
-import React, { FC, memo } from 'react';
+import React, { FC } from 'react';
 /** @jsx jsx */
 import { css, jsx } from '@emotion/core';
 import { gray5, accent2 } from './Styles';
 import { QuestionData } from './QuestionData';
 import { Question } from './Question';
-import { render } from '@testing-library/react';
 
 interface Props {
   data: QuestionData[];
