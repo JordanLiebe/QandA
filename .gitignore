@@ -31,8 +31,8 @@
 *.out
 *.app
 
-/backend/QandA/bin/Debug/netcoreapp3.1
-/backend/QandA/obj
+bin/*
+obj/*
 frontend/node_modules/.
 
 *node_modules/*
