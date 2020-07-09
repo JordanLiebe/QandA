@@ -2,7 +2,27 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <UserSecretsId>3eb98c4b-9ae0-418b-8294-9d46ee0d36a4</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="SQLScripts\01-Tables.sql" />
+    <None Remove="SQLScripts\02-Sprocs.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="SQLScripts\01-Tables.sql" />
+    <EmbeddedResource Include="SQLScripts\02-Sprocs.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.0.35" />
+    <PackageReference Include="dbup" Version="4.4.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="5.5.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="5.5.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="5.5.1" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.1" />
+  </ItemGroup>
 
 
 </Project>
