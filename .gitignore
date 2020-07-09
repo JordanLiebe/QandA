@@ -31,8 +31,6 @@
 *.out
 *.app
 
-bin/*
-obj/*
-frontend/node_modules/.
-
+*bin/*
+*obj/*
 *node_modules/*
