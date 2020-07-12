@@ -10,11 +10,19 @@ namespace QandA.Data
     {
         IEnumerable<QuestionGetManyResponse> GetQuestions();
 
+        IEnumerable<QuestionGetManyResponse> GetQuestionsWithAnswers();
+
+        IEnumerable<QuestionGetManyResponse>
+            GetQuestionsBySearchWithPaging(string search, int pageNumber, int pageSize);
+
         IEnumerable<QuestionGetManyResponse>
             GetQuestionsBySearch(string search);
 
         IEnumerable<QuestionGetManyResponse>
             GetUnansweredQuestions();
+
+        Task<IEnumerable<QuestionGetManyResponse>>
+            GetUnansweredQuestionsAsync();
 
         QuestionGetSingleResponse
             GetQuestion(int questionId);

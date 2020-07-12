@@ -17,31 +17,43 @@ namespace QandA.Controllers
     {
         private readonly IDataRepository _dataRepository;
         private readonly IHubContext<QuestionsHub> _questionHubContext;
+        private readonly IQuestionCache _cache;
 
-        public QuestionsController(IDataRepository dataRepository, IHubContext<QuestionsHub> questionHubContext)
+        public QuestionsController(IDataRepository dataRepository, IHubContext<QuestionsHub> questionHubContext, IQuestionCache cache)
         {
             // TODO - set referense to _dataRepository
             _dataRepository = dataRepository;
             _questionHubContext = questionHubContext;
+            _cache = cache;
         }
 
         [HttpGet]
-        public IEnumerable<QuestionGetManyResponse> GetQuestions(string search)
+        public IEnumerable<QuestionGetManyResponse> GetQuestions(string search, bool includeAnswers, int page = 1, int pageSize = 20)
         {
             if(string.IsNullOrEmpty(search))
             {
-                return _dataRepository.GetQuestions();
+                if(includeAnswers)
+                {
+                    return _dataRepository.GetQuestionsWithAnswers();
+                }
+                else
+                {
+                    return _dataRepository.GetQuestions();
+                }
             }
             else
             {
-                return _dataRepository.GetQuestionsBySearch(search);
+                return _dataRepository.GetQuestionsBySearchWithPaging(
+                    search,
+                    page,
+                    pageSize);
             }
         }
 
         [HttpGet("unanswered")]
-        public IEnumerable<QuestionGetManyResponse> GetUnansweredQuestions()
+        public async Task<IEnumerable<QuestionGetManyResponse>> GetUnansweredQuestions()
         {
-            return _dataRepository.GetUnansweredQuestions();
+            return await _dataRepository.GetUnansweredQuestionsAsync();
         }
 
         [HttpGet("{questionId}")]
@@ -49,11 +61,16 @@ namespace QandA.Controllers
             GetQuestion(int questionId)
         {
             // TODO - call the data repository to get the question
-            var question = _dataRepository.GetQuestion(questionId);
+            var question = _cache.Get(questionId);
             // TODO - return HTTP status code 404 if the question isn't found
             if(question == null)
             {
-                return NotFound();
+                question = _dataRepository.GetQuestion(questionId);
+                if(question == null)
+                {
+                    return NotFound();
+                }
+                _cache.Set(question);
             }
             // TODO - return question in response with status code 200
             return question;
@@ -103,6 +120,8 @@ namespace QandA.Controllers
             var savedQuestion =
                 _dataRepository.PutQuestion(questionId,
                     questionPutRequest);
+            // TODO - remove from cache
+            _cache.Remove(savedQuestion.QuestionId);
             // TODO - return the saved question
             return savedQuestion;
         }
@@ -115,7 +134,11 @@ namespace QandA.Controllers
             {
                 return NotFound();
             }
+            // TODO - delete question from database
             _dataRepository.DeleteQuestion(questionId);
+            // TODO - remove question from cache
+            _cache.Remove(questionId);
+            // TODO - return a no content response
             return NoContent();
         }
 
@@ -140,6 +163,8 @@ namespace QandA.Controllers
                     Created = DateTime.UtcNow
                 }
             );
+
+            _cache.Remove(answerPostRequest.QuestionId.Value);
 
             _questionHubContext.Clients.Group($"Question-{answerPostRequest.QuestionId.Value}")
                 .SendAsync("ReceiveQuestion", _dataRepository.GetQuestion(answerPostRequest.QuestionId.Value));
