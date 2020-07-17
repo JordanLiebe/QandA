@@ -10,7 +10,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Swashbuckle.AspNetCore.Swagger;
+using QandA.Authorization;
 using QandA.Data;
 using QandA.Hubs;
 using DbUp;
@@ -59,13 +63,40 @@ namespace QandA
                 options.AddPolicy("CorsPolicy", builder =>
                 builder.AllowAnyMethod()
                     .AllowAnyHeader()
-                    .WithOrigins("http://localhost:3000")
+                    .WithOrigins("http://localhost:3000", "https://qanda.jmliebe.com")
                     .AllowCredentials()));
 
             services.AddSignalR();
 
             services.AddMemoryCache();
             services.AddSingleton<IQuestionCache, QuestionCache>();
+
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme =
+                    JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme =
+                    JwtBearerDefaults.AuthenticationScheme;
+            }).AddJwtBearer(options =>
+            {
+                options.Authority = Configuration["Auth0:Authority"];
+                options.Audience = Configuration["Auth0:Audience"];
+            });
+
+            services.AddHttpClient();
+
+            services.AddAuthorization(options =>
+                options.AddPolicy("MustBeQuestionAuthor", policy =>
+                    policy.Requirements
+                        .Add(new MustBeQuestionAuthorRequirement())));
+
+            services.AddScoped<
+                IAuthorizationHandler,
+                MustBeQuestionAuthorHandler>();
+
+            services.AddSingleton<
+                IHttpContextAccessor,
+                HttpContextAccessor>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -95,6 +126,8 @@ namespace QandA
             app.UseHttpsRedirection();
 
             app.UseRouting();
+
+            app.UseAuthentication();
 
             app.UseAuthorization();
 

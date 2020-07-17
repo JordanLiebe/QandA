@@ -1,3 +1,25 @@
-import React from 'react';
+import React, { FC } from 'react';
 import { Page } from './Page';
-export const SignInPage = () => <Page title="Sign In" />;
+import { StatusText } from './Styles';
+import { useAuth } from './Auth';
+import { act } from 'react-dom/test-utils';
+
+type SigninAction = 'signin' | 'signin-callback';
+
+interface Props {
+  action: SigninAction;
+}
+
+export const SignInPage: FC<Props> = ({ action }) => {
+  const { signIn } = useAuth();
+
+  if (action === 'signin') {
+    signIn();
+  }
+
+  return (
+    <Page title="Sign In">
+      <StatusText>Signing in ...</StatusText>
+    </Page>
+  );
+};

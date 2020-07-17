@@ -13,6 +13,7 @@ import {
   mapQuestionFromServer,
   QuestionDataFromServer,
 } from './QuestionData';
+import { useAuth } from './Auth';
 import { AnswerList } from './AnswerList';
 import { Form, required, minLength, Values } from './Form';
 import { Field } from './Field';
@@ -118,6 +119,8 @@ export const QuestionPage: FC<RouteComponentProps<RouteParams>> = ({
     return { success: result ? true : false };
   };
 
+  const { isAuthenticated } = useAuth();
+
   return (
     <Page>
       <div
@@ -161,26 +164,28 @@ export const QuestionPage: FC<RouteComponentProps<RouteParams>> = ({
             ${question.created.toLocaleTimeString()}`}
             </div>
             <AnswerList data={question.answers} />
-            <div
-              css={css`
-                margin-top: 20px;
-              `}
-            >
-              <Form
-                submitCaption="Submit Your Answer"
-                validationRules={{
-                  content: [
-                    { validator: required },
-                    { validator: minLength, arg: 50 },
-                  ],
-                }}
-                onSubmit={handleSubmit}
-                failureMessage="There was a problem with your answer"
-                successMessage="Your answer was successfully submitted"
+            {isAuthenticated && (
+              <div
+                css={css`
+                  margin-top: 20px;
+                `}
               >
-                <Field name="content" label="Your Answer" type="TextArea" />
-              </Form>
-            </div>
+                <Form
+                  submitCaption="Submit Your Answer"
+                  validationRules={{
+                    content: [
+                      { validator: required },
+                      { validator: minLength, arg: 50 },
+                    ],
+                  }}
+                  onSubmit={handleSubmit}
+                  failureMessage="There was a problem with your answer"
+                  successMessage="Your answer was successfully submitted"
+                >
+                  <Field name="content" label="Your Answer" type="TextArea" />
+                </Form>
+              </div>
+            )}
           </Fragment>
         )}
       </div>

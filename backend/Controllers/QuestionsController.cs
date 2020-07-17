@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Mvc;
 using QandA.Data;
 using QandA.Data.Models;
 using QandA.Hubs;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http;
+using System.Text.Json;
 
 namespace QandA.Controllers
 {
@@ -18,13 +23,43 @@ namespace QandA.Controllers
         private readonly IDataRepository _dataRepository;
         private readonly IHubContext<QuestionsHub> _questionHubContext;
         private readonly IQuestionCache _cache;
+        private readonly IHttpClientFactory _clientFactory;
+        private readonly string _auth0UserInfo;
 
-        public QuestionsController(IDataRepository dataRepository, IHubContext<QuestionsHub> questionHubContext, IQuestionCache cache)
+        public QuestionsController(IDataRepository dataRepository, IHubContext<QuestionsHub> questionHubContext, IQuestionCache cache, IHttpClientFactory clientFactory, IConfiguration configuration)
         {
             // TODO - set referense to _dataRepository
             _dataRepository = dataRepository;
             _questionHubContext = questionHubContext;
             _cache = cache;
+            _clientFactory = clientFactory;
+            _auth0UserInfo = $"{configuration["Auth0:Authority"]}userinfo";
+        }
+
+        private async Task<string> GetUserName()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get,
+                _auth0UserInfo);
+            request.Headers.Add("Authorization",
+                Request.Headers["Authorization"].First());
+            var client = _clientFactory.CreateClient();
+            var response = await client.SendAsync(request);
+
+            if(response.IsSuccessStatusCode)
+            {
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                var user = JsonSerializer.Deserialize<User>(
+                    jsonContent,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                return user.Name;
+            }
+            else
+            {
+                return "";
+            }
         }
 
         [HttpGet]
@@ -76,8 +111,9 @@ namespace QandA.Controllers
             return question;
         }
 
+        [Authorize]
         [HttpPost]
-        public ActionResult<QuestionGetSingleResponse>
+        public async Task<ActionResult<QuestionGetSingleResponse>>
             PostQuestion(QuestionPostRequest questionPostRequest)
         {
             // TODO - call the data repository
@@ -86,8 +122,8 @@ namespace QandA.Controllers
                 {
                     Title = questionPostRequest.Title,
                     Content = questionPostRequest.Content,
-                    UserId = "1",
-                    UserName = "bob.test@test.com",
+                    UserId = User.FindFirst(ClaimTypes.NameIdentifier).Value,
+                    UserName = await GetUserName(),
                     Created = DateTime.UtcNow
                 });
             // TODO - return HTTP status code 201
@@ -96,6 +132,7 @@ namespace QandA.Controllers
                 savedQuestion);
         }
 
+        [Authorize(Policy = "MustBeQuestionAuthor")]
         [HttpPut("{questionId}")]
         public ActionResult<QuestionGetSingleResponse>
             PutQuestion(int questionId,
@@ -126,6 +163,7 @@ namespace QandA.Controllers
             return savedQuestion;
         }
 
+        [Authorize(Policy = "MustBeQuestionAuthor")]
         [HttpDelete("{questionId}")]
         public ActionResult DeleteQuestion(int questionId)
         {
@@ -142,8 +180,9 @@ namespace QandA.Controllers
             return NoContent();
         }
 
+        [Authorize]
         [HttpPost("answer")]
-        public ActionResult<AnswerGetResponse>
+        public async Task<ActionResult<AnswerGetResponse>>
             PostAnswer(AnswerPostFullRequest answerPostRequest)
         {
             var questionExists = _dataRepository.QuestionExists(answerPostRequest.QuestionId.Value);
@@ -158,15 +197,15 @@ namespace QandA.Controllers
                 {
                     QuestionId = answerPostRequest.QuestionId.Value,
                     Content = answerPostRequest.Content,
-                    UserId = "1",
-                    UserName = "bob.test@test.com",
+                    UserId = User.FindFirst(ClaimTypes.NameIdentifier).Value,
+                    UserName = await GetUserName(),
                     Created = DateTime.UtcNow
                 }
             );
 
             _cache.Remove(answerPostRequest.QuestionId.Value);
 
-            _questionHubContext.Clients.Group($"Question-{answerPostRequest.QuestionId.Value}")
+            await _questionHubContext.Clients.Group($"Question-{answerPostRequest.QuestionId.Value}")
                 .SendAsync("ReceiveQuestion", _dataRepository.GetQuestion(answerPostRequest.QuestionId.Value));
 
             return savedAnswer;
